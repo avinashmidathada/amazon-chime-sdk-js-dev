@@ -24,6 +24,9 @@ import AudioLogEvent from '../statscollector/AudioLogEvent';
 import { Maybe } from '../utils/Types';
 import VideoTileState from '../videotile/VideoTileState';
 import BaseTask from './BaseTask';
+import SendingAudioFailureConnectionHealthPolicy
+  from "../connectionhealthpolicy/SendingAudioFailureConnectionHealthPolicy";
+import ConnectionHealthPolicy from "../connectionhealthpolicy/ConnectionHealthPolicy";
 
 /*
  * [[MonitorTask]] monitors connections using SignalingAndMetricsConnectionMonitor.
@@ -35,6 +38,7 @@ export default class MonitorTask
 
   private reconnectionHealthPolicy: ReconnectionHealthPolicy;
   private unusableAudioWarningHealthPolicy: UnusableAudioWarningConnectionHealthPolicy;
+  private sendingAudioFailureHealthPolicy: SendingAudioFailureConnectionHealthPolicy;
   private prevSignalStrength: number = 1;
   private static DEFAULT_DOWNLINK_CALLRATE_OVERSHOOT_FACTOR: number = 2.0;
   private static DEFAULT_DOWNLINK_CALLRATE_UNDERSHOOT_FACTOR: number = 0.2;
@@ -63,6 +67,11 @@ export default class MonitorTask
       { ...connectionHealthPolicyConfiguration },
       this.initialConnectionHealthData.clone()
     );
+    this.sendingAudioFailureHealthPolicy = new SendingAudioFailureConnectionHealthPolicy(
+        context.logger,
+        { ...connectionHealthPolicyConfiguration },
+        this.initialConnectionHealthData.clone()
+    )
   }
 
   removeObserver(): void {
@@ -267,23 +276,17 @@ export default class MonitorTask
       }
     }
 
-    this.reconnectionHealthPolicy.update(connectionHealthData);
-    const reconnectionValue = this.reconnectionHealthPolicy.healthIfChanged();
-    if (reconnectionValue !== null) {
-      this.logger.info(`reconnection health is now: ${reconnectionValue}`);
-      if (reconnectionValue === 0) {
+    
+    this.enactHealthPolicy(this.reconnectionHealthPolicy, connectionHealthData,
+      () => {
         this.context.audioVideoController.handleMeetingSessionStatus(
           new MeetingSessionStatus(MeetingSessionStatusCode.ConnectionHealthReconnect),
           null
         );
-      }
-    }
+    });
 
-    this.unusableAudioWarningHealthPolicy.update(connectionHealthData);
-    const unusableAudioWarningValue = this.unusableAudioWarningHealthPolicy.healthIfChanged();
-    if (unusableAudioWarningValue !== null) {
-      this.logger.info(`unusable audio warning is now: ${unusableAudioWarningValue}`);
-      if (unusableAudioWarningValue === 0) {
+    this.enactHealthPolicy(this.unusableAudioWarningHealthPolicy, connectionHealthData,
+      () => {
         this.context.poorConnectionCount += 1;
         const attributes = this.generateAudioVideoEventAttributes();
         this.context.eventController?.publishEvent('receivingAudioDropped', attributes);
@@ -296,10 +299,32 @@ export default class MonitorTask
             Maybe.of(observer.connectionDidBecomePoor).map(f => f.bind(observer)());
           });
         }
-      } else {
+      },
+      () => {
         this.context.audioVideoController.forEachObserver((observer: AudioVideoObserver) => {
           Maybe.of(observer.connectionDidBecomeGood).map(f => f.bind(observer)());
-        });
+      });
+    });
+    
+    this.enactHealthPolicy(this.sendingAudioFailureHealthPolicy, connectionHealthData,
+      () => {
+        this.context.eventController?.publishEvent('sendingAudioFailed');
+      },
+      () => {
+        this.context.eventController?.publishEvent('sendingAudioRecovered');
+    });
+  }
+  
+  private enactHealthPolicy(healthPolicy: ConnectionHealthPolicy, connectionHealthData: ConnectionHealthData,
+                            unHealthyCallback: () => void, healthyCallback?: () => void): void {
+    healthPolicy.update(connectionHealthData);
+    const healthValue = healthPolicy.healthIfChanged();
+    if (healthValue !== null) {
+      this.logger.info(`${healthPolicy.constructor.name} value is now ${healthValue}`);
+      if (healthValue <= healthPolicy.minimumHealth()) {
+        unHealthyCallback.bind(this)();
+      } else {
+        Maybe.of(healthyCallback).map(f => f.bind(this)());
       }
     }
   }

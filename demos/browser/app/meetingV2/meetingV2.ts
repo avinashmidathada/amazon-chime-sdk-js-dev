@@ -1640,6 +1640,10 @@ export class DemoMeetingApp
       case 'meetingReconnected':
       case 'receivingAudioDropped':
       case 'signalingDropped':
+      case 'sendingAudioFailed':
+      // We can move sendingAudioRecovered below to include meetingHistory attribute if we re-use it for
+      // recovery from a future "sendingAudioSilenced" event
+      case 'sendingAudioRecovered':
       case 'attendeePresenceReceived': {
         // Exclude the "meetingHistory" attribute for successful -> published events.
         this.meetingEventPOSTLogger?.info(
@@ -2519,7 +2523,7 @@ export class DemoMeetingApp
 
   async populateAudioInputList(): Promise<void> {
     const genericName = 'Microphone';
-    let additionalDevices = ['None', '440 Hz', 'Prerecorded Speech', 'Echo'];
+    let additionalDevices = ['None', '440 Hz', 'Prerecorded Speech', 'Echo', 'No Audio'];
     const additionalStereoTestDevices = ['L-500Hz R-1000Hz', 'Prerecorded Speech (Stereo)'];
     const additionalToggles = [];
 
@@ -2918,6 +2922,11 @@ export class DemoMeetingApp
         this.log(`Error creating Echo`);
         return null;
       }
+    }
+
+    if (value === 'No Audio') {
+      // A media stream from a destination node without any source connected
+      return DefaultDeviceController.getAudioContext().createMediaStreamDestination().stream;
     }
 
     if (value === 'None' || value === '') {

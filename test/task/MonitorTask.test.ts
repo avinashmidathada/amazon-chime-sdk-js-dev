@@ -1018,6 +1018,29 @@ describe('MonitorTask', () => {
       ];
       task.connectionHealthDidChange(connectionHealthData);
     });
+    
+    
+    it('notifies sending audio failure and recovery', done => {
+      const spy = sinon.spy(context.eventController, 'publishEvent');
+      const testConfig = new ConnectionHealthPolicyConfiguration();
+      testConfig.sendingAudioFailureSamplesToConsider = 2;
+      class TestConnectionHealthData extends ConnectionHealthData {
+        isConnectionStartRecent(_recentDurationMs: number): boolean {
+          return false;
+        }
+      }
+      const connectionHealthData = new TestConnectionHealthData();
+      connectionHealthData.setConsecutiveStatsWithNoAudioPacketsSent(testConfig.sendingAudioFailureSamplesToConsider);
+      task.connectionHealthDidChange(connectionHealthData);
+      expect(spy.calledWith('sendingAudioFailed')).to.be.true;
+      
+      connectionHealthData.setConsecutiveStatsWithNoAudioPacketsSent(0);
+      task.connectionHealthDidChange(connectionHealthData);
+      expect(spy.calledWith('sendingAudioRecovered')).to.be.true;
+      done();
+    });
+    
+    
   });
 
   describe('handleSignalingClientEvent', () => {

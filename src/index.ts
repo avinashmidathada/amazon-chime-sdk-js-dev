@@ -225,6 +225,7 @@ import SDPCandidateType from './sdp/SDPCandidateType';
 import SDPMediaSection from './sdp/SDPMediaSection';
 import Scheduler from './scheduler/Scheduler';
 import SendAndReceiveDataMessagesTask from './task/SendAndReceiveDataMessagesTask';
+import SendingAudioFailureConnectionHealthPolicy from './connectionhealthpolicy/SendingAudioFailureConnectionHealthPolicy';
 import SerialGroupTask from './task/SerialGroupTask';
 import ServerSideNetworkAdaption from './signalingclient/ServerSideNetworkAdaption';
 import SessionStateController from './sessionstatecontroller/SessionStateController';
@@ -560,6 +561,7 @@ export {
   SDPMediaSection,
   Scheduler,
   SendAndReceiveDataMessagesTask,
+  SendingAudioFailureConnectionHealthPolicy,
   SerialGroupTask,
   ServerSideNetworkAdaption,
   SessionStateController,

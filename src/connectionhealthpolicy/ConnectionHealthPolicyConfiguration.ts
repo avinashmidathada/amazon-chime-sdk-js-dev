@@ -24,4 +24,6 @@ export default class ConnectionHealthPolicyConfiguration {
   missedPongsUpperThreshold = 4;
   maximumAudioDelayMs = 60000;
   maximumAudioDelayDataPoints = 10;
+  sendingAudioFailureSamplesToConsider = 2;
+  sendingAudioFailureInitialWaitTimeMs = 3000;
 }
