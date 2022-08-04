@@ -26,7 +26,7 @@ import VideoTileState from '../videotile/VideoTileState';
 import BaseTask from './BaseTask';
 import SendingAudioFailureConnectionHealthPolicy
   from "../connectionhealthpolicy/SendingAudioFailureConnectionHealthPolicy";
-import ConnectionHealthPolicy from "../connectionhealthpolicy/ConnectionHealthPolicy";
+import BaseConnectionHealthPolicy from "../connectionhealthpolicy/BaseConnectionHealthPolicy";
 
 /*
  * [[MonitorTask]] monitors connections using SignalingAndMetricsConnectionMonitor.
@@ -315,12 +315,12 @@ export default class MonitorTask
     });
   }
   
-  private enactHealthPolicy(healthPolicy: ConnectionHealthPolicy, connectionHealthData: ConnectionHealthData,
+  private enactHealthPolicy(healthPolicy: BaseConnectionHealthPolicy, connectionHealthData: ConnectionHealthData,
                             unHealthyCallback: () => void, healthyCallback?: () => void): void {
     healthPolicy.update(connectionHealthData);
     const healthValue = healthPolicy.healthIfChanged();
     if (healthValue !== null) {
-      this.logger.info(`${healthPolicy.constructor.name} value is now ${healthValue}`);
+      this.logger.info(`${healthPolicy.getCanonicalName()} value is now ${healthValue}`);
       if (healthValue <= healthPolicy.minimumHealth()) {
         unHealthyCallback.bind(this)();
       } else {

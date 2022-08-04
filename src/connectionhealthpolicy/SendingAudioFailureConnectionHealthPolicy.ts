@@ -22,7 +22,7 @@ export default class SendingAudioFailureConnectionHealthPolicy
         configuration: ConnectionHealthPolicyConfiguration,
         data: ConnectionHealthData
     ) {
-        super(configuration, data);
+        super(configuration, data, 'Sending Audio Health');
         this.secondsToConsider = configuration.sendingAudioFailureSamplesToConsider;
         this.initialWaitTimeMs = configuration.sendingAudioFailureInitialWaitTimeMs;
         this.maximumTimesToWarn = configuration.maximumTimesToWarn;
