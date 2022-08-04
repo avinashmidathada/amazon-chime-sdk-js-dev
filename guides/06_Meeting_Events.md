@@ -102,6 +102,8 @@ The Chime SDK for JavaScript sends these meeting events.
 |`videoInputFailed`      |The camera selection failed.
 |`signalingDropped`      |The WebSocket failed or closed with an error.
 |`receivingAudioDropped` |A significant number of receive-audio packets dropped.
+|`sendingAudioFailed`    |Audio packets are not being sent out for a considerable timespan
+|`sendingAudioRecovered` |Recovery from `sendingAudioFailed` as audio packets are being sent.
 
 <br>
 
@@ -204,6 +206,8 @@ The following table lists available states.
 |`videoInputFailed`|The camera selection failed.
 |`videoInputSelected`|The camera was selected.
 |`videoInputUnselected`|The camera was removed. You called `meetingSession.audioVideo.stopVideoInput` with `null`.
+|`sendingAudioFailed`|Audio packets are not being sent out for a considerable timespan
+|`sendingAudioRecovered`|Recovery from `sendingAudioFailed` as audio packets are being sent.
 
 <br>
 
@@ -245,6 +249,22 @@ JavaScript uses the browser's [`getUserMedia` API](https://developer.mozilla.org
 |--|--
 |1. TypeError: Failed to execute 'getUserMedia' on 'MediaDevices': At least one of audio and video must be requested<br>2. NotAllowedError: The request is not allowed by the user agent or the platform in the current context.<br>3. TypeError: Type error|Ensure that you allow permission to the media devices. Also, the browser should have access to the media devices.
 |NotReadableError: Could not start video source|Ensure that you do not use the media devices in other browser tabs or applications. A hardware error may also occur at the operating system or browser. If the problem persists, restart the browser and try again.
+
+<br>
+
+### Audio transmission related events
+
+The Javascript SDK publishes the following events to report issues with audio transmission:
+
+- The `receivingAudioDropped` event is triggered when the packet loss for receiving audio is high. This can be used to warn users about potential network connectivity issues but if you are already using the [connectionDidSuggestStopVideo](https://aws.github.io/amazon-chime-sdk-js/interfaces/audiovideoobserver.html#connectiondidsuggeststopvideo) or [connectionDidBecomePoor](https://aws.github.io/amazon-chime-sdk-js/interfaces/audiovideoobserver.html#connectiondidbecomepoor) callbacks you do not need to take any action as these callbacks are triggered on the same Predicate.
+
+- The `sendingAudioFailed` event is triggered when audio packets are not being sent out consistently. This event can be used to alert the user that their audio is not reaching other attendees or to ask them to take a manual action such as changing the input audio device or restarting the application. When there's a recovery in the audio packets sent, the `sendingAudioRecovered` event is published which can be used to acknowledge that the user action did succeed.  Unlike the `receivingAudioDropped` event there are no additional callbacks which are invoked for this case. There are few caveats attached to these events listed below:
+  - The `sendingAudioFailed` event may not trigger accurately in Firefox when the user switches from a working audio input device to a non-working one, this is due to a potential bug in the WebRTC's getStats() implementation within Firefox. 
+  - In certain genuine usecases where applications want to allow users to join as an observer without any audio input, we may trigger the `sendingAudioFailed` event incorrectly in Firefox and Safari. This is related to an [existing bug](https://github.com/aws/amazon-chime-sdk-js/issues/474) which actually sends such attendees into a reconnect loop and eventually results in meeting failure.
+
+
+Once published these events undergo a cooldown period to avoid inundating the event observer
+in case of an erratic network/audio device. In addition to this, within a connection, the number of times the events are published is also capped to a maximum . `cooldownTimeMs` and `maximumTimesToWarn` are the respective thresholds for this behaviour whose values are defined in [ConnectionHealthPolicyConfiguration](https://aws.github.io/amazon-chime-sdk-js/classes/connectionhealthpolicyconfiguration.html).
 
 <br>
 
